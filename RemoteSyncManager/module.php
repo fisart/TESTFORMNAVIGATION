@@ -16,22 +16,19 @@ class RemoteSyncManager extends IPSModuleStrict
         $this->RegisterPropertyString("Roots", "[]");
         $this->RegisterPropertyString("SyncList", "[]");
 
-        // Unser "Working Memory" im RAM
         $this->RegisterAttributeString("SyncListCache", "[]");
     }
 
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
-        // Nach ApplyChanges leeren wir den Cache, damit er beim nächsten Öffnen 
-        // wieder frisch von der Property geladen wird.
         $this->WriteAttributeString("SyncListCache", "[]");
     }
 
     private function GetWorkingSyncList(): array
     {
         $cache = $this->ReadAttributeString("SyncListCache");
-        if ($cache === "[]" || $cache === "") {
+        if ($cache === "" || $cache === "[]") {
             $cache = $this->ReadPropertyString("SyncList");
         }
         $data = json_decode($cache, true);
@@ -40,12 +37,15 @@ class RemoteSyncManager extends IPSModuleStrict
 
     public function GetConfigurationForm(): string
     {
+        $currentCache = $this->ReadAttributeString("SyncListCache");
+        if ($currentCache === "" || $currentCache === "[]") {
+            $this->WriteAttributeString("SyncListCache", $this->ReadPropertyString("SyncList"));
+        }
+
         $form = json_decode(file_get_contents(__DIR__ . "/form.json"), true);
         $secID = $this->ReadPropertyInteger("LocalPasswordModuleID");
         $targets = json_decode($this->ReadPropertyString("Targets"), true);
         $roots = json_decode($this->ReadPropertyString("Roots"), true);
-
-        // Wir laden immer den aktuellen Arbeitsstand (RAM oder Disk)
         $savedSync = $this->GetWorkingSyncList();
 
         $serverOptions = [["caption" => "Please select...", "value" => ""]];
@@ -55,12 +55,10 @@ class RemoteSyncManager extends IPSModuleStrict
                 foreach ($keys as $k) $serverOptions[] = ["caption" => (string)$k, "value" => (string)$k];
             }
         }
-
         $folderOptions = [["caption" => "Select Target Folder...", "value" => ""]];
         foreach ($targets as $t) {
             if (!empty($t['Name'])) $folderOptions[] = ["caption" => $t['Name'], "value" => $t['Name']];
         }
-
         $this->UpdateStaticFormElements($form['elements'], $serverOptions, $folderOptions);
 
         $stateCache = [];
@@ -94,23 +92,22 @@ class RemoteSyncManager extends IPSModuleStrict
             }
 
             $listName = "List_" . md5($folderName);
-            $panel = [
+
+            // DIE WICHTIGSTE ÄNDERUNG (Blueprint Pattern):
+            // Wir wandeln das Proxy-Objekt ($listName) inline in ein JSON-Array um.
+            $onChangeLogic = "\$D=[]; foreach(\$$listName as \$r) { \$D[]=\$r; } RSM_UpdateIndividualSelection(\$id, '$folderName', json_encode(\$D));";
+
+            $form['elements'][] = [
                 "type"    => "ExpansionPanel",
                 "caption" => "TARGET: " . strtoupper($folderName) . " (" . count($syncValues) . " Variables)",
                 "items"   => [
                     [
                         "type" => "RowLayout",
                         "items" => [
-                            ["type" => "Label", "caption" => "Batch Tools:", "bold" => true, "width" => "90px"],
-                            ["type" => "Button", "caption" => "Sync ALL", "onClick" => "RSM_ToggleAll(\$id, 'Active', true, '$folderName');", "width" => "85px"],
-                            ["type" => "Button", "caption" => "Sync NONE", "onClick" => "RSM_ToggleAll(\$id, 'Active', false, '$folderName');", "width" => "85px"],
+                            ["type" => "Button", "caption" => "Sync ALL", "onClick" => "RSM_ToggleAll(\$id, 'Active', true, '$folderName');", "width" => "100px"],
+                            ["type" => "Button", "caption" => "Sync NONE", "onClick" => "RSM_ToggleAll(\$id, 'Active', false, '$folderName');", "width" => "100px"],
                             ["type" => "Label", "caption" => "|", "width" => "15px"],
-                            ["type" => "Button", "caption" => "Action ALL", "onClick" => "RSM_ToggleAll(\$id, 'Action', true, '$folderName');", "width" => "85px"],
-                            ["type" => "Button", "caption" => "Action NONE", "onClick" => "RSM_ToggleAll(\$id, 'Action', false, '$folderName');", "width" => "85px"],
-                            ["type" => "Label", "caption" => "|", "width" => "15px"],
-                            ["type" => "Button", "caption" => "Del ALL", "onClick" => "RSM_ToggleAll(\$id, 'Delete', true, '$folderName');", "width" => "85px"],
-                            ["type" => "Button", "caption" => "Del NONE", "onClick" => "RSM_ToggleAll(\$id, 'Delete', false, '$folderName');", "width" => "85px"],
-                            ["type" => "Label", "caption" => "|", "width" => "15px"],
+                            ["type" => "Button", "caption" => "Action ALL", "onClick" => "RSM_ToggleAll(\$id, 'Action', true, '$folderName');", "width" => "100px"],
                             ["type" => "Button", "caption" => "INSTALL SCRIPTS", "onClick" => "RSM_InstallRemoteScripts(\$id, '$folderName');"]
                         ]
                     ],
@@ -120,7 +117,7 @@ class RemoteSyncManager extends IPSModuleStrict
                         "rowCount" => min(count($syncValues) + 1, 10),
                         "add" => false,
                         "delete" => false,
-                        "onChange" => "RSM_UpdateIndividualSelection(\$id, '$folderName', \$$listName);",
+                        "onChange" => $onChangeLogic,
                         "columns" => [
                             ["name" => "ObjectID", "caption" => "ID", "width" => "70px"],
                             ["name" => "Name", "caption" => "Variable Name", "width" => "auto"],
@@ -132,7 +129,6 @@ class RemoteSyncManager extends IPSModuleStrict
                     ]
                 ]
             ];
-            $form['elements'][] = $panel;
         }
         return json_encode($form);
     }
@@ -159,8 +155,9 @@ class RemoteSyncManager extends IPSModuleStrict
     public function UpdateIndividualSelection(string $Folder, string $ListDataJSON): void
     {
         $listData = json_decode($ListDataJSON, true);
-        $savedSync = $this->GetWorkingSyncList();
+        if (!is_array($listData)) return; // Sicherheits-Check
 
+        $savedSync = $this->GetWorkingSyncList();
         $map = [];
         foreach ($savedSync as $item) $map[$item['Folder'] . '_' . $item['ObjectID']] = $item;
 
@@ -175,7 +172,6 @@ class RemoteSyncManager extends IPSModuleStrict
                 "Delete" => $uiItem['Delete']
             ];
         }
-        // Schreiben in das Attribut (RAM)
         $this->WriteAttributeString("SyncListCache", json_encode(array_values($map)));
     }
 
@@ -205,10 +201,7 @@ class RemoteSyncManager extends IPSModuleStrict
             }
         }
 
-        // Schreiben in das Attribut (RAM)
         $this->WriteAttributeString("SyncListCache", json_encode(array_values($currentMap)));
-
-        // UI-Update (damit die Haken sofort sichtbar sind)
         $this->UpdateFormField("List_" . md5($Folder), "values", json_encode($uiValues));
     }
 
@@ -224,12 +217,13 @@ class RemoteSyncManager extends IPSModuleStrict
     public function SaveSelections(): void
     {
         $data = $this->ReadAttributeString("SyncListCache");
-        if ($data !== "[]" && $data !== "") {
-            IPS_SetProperty($this->InstanceID, "SyncList", $data);
-            IPS_ApplyChanges($this->InstanceID);
-            echo "Selections saved successfully.";
-        } else {
-            echo "Nothing to save.";
+        if ($data === "" || $data === "[]") {
+            $data = $this->ReadPropertyString("SyncList");
+        }
+
+        IPS_SetProperty($this->InstanceID, "SyncList", $data);
+        if (IPS_ApplyChanges($this->InstanceID)) {
+            echo "✅ Selections saved successfully.";
         }
     }
 
