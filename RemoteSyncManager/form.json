@@ -5,8 +5,8 @@
             "caption": "Global Configuration",
             "items": [
                 { "type": "CheckBox", "name": "DebugMode", "caption": "Debug Mode (Verbose Log)" },
-                { "type": "CheckBox", "name": "AutoCreate", "caption": "Use Auto-Create (Create missing remote objects)" },
-                { "type": "CheckBox", "name": "ReplicateProfiles", "caption": "Replicate Variable Profiles (local → remote)" },
+                { "type": "CheckBox", "name": "AutoCreate", "caption": "Use Auto-Create" },
+                { "type": "CheckBox", "name": "ReplicateProfiles", "caption": "Replicate Variable Profiles" },
                 {
                     "type": "SelectInstance",
                     "name": "LocalPasswordModuleID",
@@ -16,45 +16,38 @@
                 {
                     "type": "Select",
                     "name": "LocalServerKey",
-                    "caption": "Local Server Key (Used by Remote for Actions)",
+                    "caption": "Local Server Key (Used by Remote)",
                     "options": []
                 }
             ]
         },
-        { "type": "Label", "caption": "Step 1: Define Remote Targets (Folders) & Connection" },
+        { "type": "Label", "caption": "Step 1: Define Remote Targets (Folders)" },
         {
             "type": "List",
             "name": "Targets",
-            "caption": "Remote Targets",
-            "rowCount": 5,
-            "add": true,
-            "delete": true,
+            "rowCount": 5, "add": true, "delete": true,
             "columns": [
                 { "name": "Name", "caption": "Folder Name", "width": "150px", "add": "", "edit": { "type": "ValidationTextBox" } },
                 { "name": "RemoteKey", "caption": "Remote Server Key", "width": "200px", "add": "", "edit": { "type": "Select", "options": [] } },
-                { "name": "RemoteRootID", "caption": "Data ID", "width": "120px", "add": 10000, "edit": { "type": "NumberSpinner", "minimum": 10000, "maximum": 99999 } },
-                { "name": "RemoteScriptRootID", "caption": "Script ID", "width": "120px", "add": 10000, "edit": { "type": "NumberSpinner", "minimum": 10000, "maximum": 99999 } },
-                { "name": "RemoteSecretsID", "caption": "SEC ID", "width": "120px", "add": 10000, "edit": { "type": "NumberSpinner", "minimum": 10000, "maximum": 99999 } }
+                { "name": "RemoteRootID", "caption": "Data ID", "width": "100px", "add": 10000, "edit": { "type": "NumberSpinner", "minimum": 10000, "maximum": 99999 } },
+                { "name": "RemoteScriptRootID", "caption": "Script ID", "width": "100px", "add": 10000, "edit": { "type": "NumberSpinner", "minimum": 10000, "maximum": 99999 } },
+                { "name": "RemoteSecretsID", "caption": "SEC ID", "width": "100px", "add": 10000, "edit": { "type": "NumberSpinner", "minimum": 10000, "maximum": 99999 } }
             ]
         },
         { "type": "Label", "caption": "Step 2: Map Local Roots to Folders" },
         {
             "type": "List",
             "name": "Roots",
-            "caption": "Local Source Roots",
-            "rowCount": 4,
-            "add": true,
-            "delete": true,
+            "rowCount": 4, "add": true, "delete": true,
             "columns": [
-                { "name": "LocalRootID", "caption": "Local Object (Source)", "width": "300px", "add": 0, "edit": { "type": "SelectObject" } },
+                { "name": "LocalRootID", "caption": "Local Object", "width": "300px", "add": 0, "edit": { "type": "SelectObject" } },
                 { "name": "TargetFolder", "caption": "Assign to Folder", "width": "200px", "add": "", "edit": { "type": "Select", "options": [] } }
             ]
-        },
-        { "type": "Label", "caption": "Step 3: Individual Selection per Target" }
+        }
     ],
     "actions": [
+        { "type": "Label", "caption": "Step 3: Individual Selection per Target (Interactive)", "bold": true },
         { "type": "Button", "name": "BtnSave", "caption": "💾 APPLY & SAVE ALL SELECTIONS", "onClick": "RSM_SaveSelections($id);" },
-        { "type": "Label", "caption": "________________________________________________________________________________" },
-        { "type": "Button", "caption": "Force Refresh UI", "onClick": "RSM_UpdateUI($id);" }
+        { "type": "Label", "caption": "________________________________________________________________________________" }
     ]
 }
