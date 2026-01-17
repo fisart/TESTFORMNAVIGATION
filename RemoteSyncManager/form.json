@@ -1,32 +1,35 @@
 {
     "elements": [
-        { "type": "Label", "caption": "Step 0: Global Authentication" },
-        { 
-            "type": "SelectInstance", 
-            "name": "LocalPasswordModuleID", 
-            "caption": "Local Secrets Module",
-            "validModules": ["{7C5A3841-3F7B-4D2A-9E1C-5B6D8F9A0E12}"] 
-        },
-        { "type": "Label", "caption": "Step 1: Define Remote Targets (Folders)" },
+        { "type": "ExpansionPanel", "caption": "Global Configuration", "items": [
+            { "type": "CheckBox", "name": "DebugMode", "caption": "Debug Mode (Verbose Log)" },
+            { "type": "CheckBox", "name": "AutoCreate", "caption": "Use Auto-Create (Create missing remote objects)" },
+            { "type": "CheckBox", "name": "ReplicateProfiles", "caption": "Replicate Variable Profiles (local → remote)" },
+            { 
+                "type": "SelectInstance", 
+                "name": "LocalPasswordModuleID", 
+                "caption": "Local Secrets Module",
+                "validModules": ["{7C5A3841-3F7B-4D2A-9E1C-5B6D8F9A0E12}"] 
+            }
+        ]},
+        { "type": "Label", "caption": "Step 1: Define Remote Targets (Folders) & Connection" },
         {
             "type": "List",
             "name": "Targets",
             "caption": "Remote Targets",
-            "rowCount": 4,
+            "rowCount": 5,
             "add": true,
             "delete": true,
             "columns": [
-                { "name": "Name", "caption": "Folder Name", "width": "150px", "add": "", "edit": { "type": "ValidationTextBox" } },
-                { 
-                    "name": "RemoteKey", 
-                    "caption": "SEC Server Key", 
-                    "width": "150px", 
-                    "add": "", 
-                    "edit": { "type": "Select", "options": [] } 
-                },
-                { "name": "RemoteRootID", "caption": "Remote Target ID", "width": "120px", "add": 0, "edit": { "type": "NumberSpinner" } }
+                { "name": "Name", "caption": "Folder Name", "width": "120px", "add": "" },
+                { "name": "RemoteKey", "caption": "Remote Server Key", "width": "150px", "add": "", "edit": { "type": "Select", "options": [] } },
+                { "name": "RemoteRootID", "caption": "Data Target ID", "width": "100px", "add": 0, "edit": { "type": "NumberSpinner" } },
+                { "name": "RemoteScriptRootID", "caption": "Script Home ID", "width": "100px", "add": 0, "edit": { "type": "NumberSpinner" } },
+                { "name": "RemoteSecretsID", "caption": "Remote SEC ID", "width": "100px", "add": 0, "edit": { "type": "NumberSpinner" } },
+                { "name": "LocalServerKey", "caption": "Local Key (Reverse)", "width": "150px", "add": "", "edit": { "type": "Select", "options": [] } }
             ]
         },
+        { "type": "Button", "caption": "INSTALL/UPDATE REMOTE SCRIPTS ON ALL TARGETS", "onClick": "RSM_InstallRemoteScripts($id);" },
+
         { "type": "Label", "caption": "Step 2: Map Local Roots to Folders" },
         {
             "type": "List",
@@ -36,17 +39,23 @@
             "add": true,
             "delete": true,
             "columns": [
-                { "name": "LocalRootID", "caption": "Local Object (Source)", "width": "250px", "add": 0, "edit": { "type": "SelectObject" } },
-                { 
-                    "name": "TargetFolder", 
-                    "caption": "Assign to Folder", 
-                    "width": "150px", 
-                    "add": "",
-                    "edit": { "type": "Select", "options": [] } 
-                }
+                { "name": "LocalRootID", "caption": "Local Object (Source)", "width": "300px", "add": 0, "edit": { "type": "SelectObject" } },
+                { "name": "TargetFolder", "caption": "Assign to Folder", "width": "200px", "add": "", "edit": { "type": "Select", "options": [] } }
             ]
         },
-        { "type": "Label", "caption": "Step 3: Objects to Sync (Consolidated)" },
+
+        { "type": "Label", "caption": "Step 3: Selection & Batch Tools" },
+        { "type": "RowLayout", "items": [
+            { "type": "Label", "caption": "Sync:", "width": "40px" },
+            { "type": "Button", "caption": "ALL", "onClick": "RSM_ToggleAll($id, 'Active', true);", "width": "60px" },
+            { "type": "Button", "caption": "NONE", "onClick": "RSM_ToggleAll($id, 'Active', false);", "width": "60px" },
+            { "type": "Label", "caption": " | Action:", "width": "60px" },
+            { "type": "Button", "caption": "ALL", "onClick": "RSM_ToggleAll($id, 'Action', true);", "width": "60px" },
+            { "type": "Button", "caption": "NONE", "onClick": "RSM_ToggleAll($id, 'Action', false);", "width": "60px" },
+            { "type": "Label", "caption": " | Delete:", "width": "60px" },
+            { "type": "Button", "caption": "ALL", "onClick": "RSM_ToggleAll($id, 'Delete', true);", "width": "60px" },
+            { "type": "Button", "caption": "NONE", "onClick": "RSM_ToggleAll($id, 'Delete', false);", "width": "60px" }
+        ]},
         {
             "type": "List",
             "name": "SyncList",
@@ -54,18 +63,18 @@
             "rowCount": 15,
             "add": false,
             "delete": false,
-            "sort": { "column": "Folder", "direction": "ascending" },
             "columns": [
-                { "name": "Folder", "caption": "Target Folder", "width": "120px" },
+                { "name": "Folder", "caption": "Target", "width": "100px" },
                 { "name": "ObjectID", "caption": "ID", "width": "70px" },
                 { "name": "Name", "caption": "Variable Name", "width": "auto" },
-                { "name": "Active", "caption": "Sync", "width": "60px", "edit": { "type": "CheckBox" } },
+                { "name": "Active", "caption": "Sync", "width": "50px", "edit": { "type": "CheckBox" } },
                 { "name": "Action", "caption": "R-Action", "width": "70px", "edit": { "type": "CheckBox" } },
-                { "name": "Delete", "caption": "Del Remote", "width": "80px", "edit": { "type": "CheckBox" } }
+                { "name": "Delete", "caption": "Del Rem.", "width": "70px", "edit": { "type": "CheckBox" } }
             ]
         }
     ],
     "actions": [
-        { "type": "Button", "caption": "Force Refresh", "onClick": "RSM_UpdateUI($id);" }
+        { "type": "Label", "caption": "Status Controller:" },
+        { "type": "Button", "caption": "Force Refresh UI", "onClick": "RSM_UpdateUI($id);" }
     ]
 }

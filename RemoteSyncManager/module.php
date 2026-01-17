@@ -8,7 +8,13 @@ class RemoteSyncManager extends IPSModuleStrict
     {
         parent::Create();
 
+        // Global Properties
+        $this->RegisterPropertyBoolean("DebugMode", false);
+        $this->RegisterPropertyBoolean("AutoCreate", true);
+        $this->RegisterPropertyBoolean("ReplicateProfiles", true);
         $this->RegisterPropertyInteger("LocalPasswordModuleID", 0);
+
+        // List Properties
         $this->RegisterPropertyString("Targets", "[]");
         $this->RegisterPropertyString("Roots", "[]");
         $this->RegisterPropertyString("SyncList", "[]");
@@ -23,16 +29,15 @@ class RemoteSyncManager extends IPSModuleStrict
     {
         $form = json_decode(file_get_contents(__DIR__ . "/form.json"), true);
 
-        // 1. Lade Konfigurationsdaten
+        // 1. Data Retrieval
         $secID = $this->ReadPropertyInteger("LocalPasswordModuleID");
         $targets = json_decode($this->ReadPropertyString("Targets"), true);
         $roots = json_decode($this->ReadPropertyString("Roots"), true);
         $savedSync = json_decode($this->ReadPropertyString("SyncList"), true);
 
-        // 2. SEC-Keys abrufen (Dropdown für Schritt 1)
+        // 2. Fetch SEC Keys for Dropdowns
         $serverOptions = [["caption" => "Please select...", "value" => ""]];
         if ($secID > 0 && IPS_InstanceExists($secID)) {
-            // Wir nutzen die Funktion deines Secrets Managers
             $keysJSON = @SEC_GetKeys($secID);
             $keys = json_decode($keysJSON, true);
             if (is_array($keys)) {
@@ -42,33 +47,35 @@ class RemoteSyncManager extends IPSModuleStrict
             }
         }
 
-        // 3. Folder-Optionen vorbereiten (Dropdown für Schritt 2)
-        $folderOptions = [];
+        // 3. Prepare Folder Options for Step 2
+        $folderOptions = [["caption" => "Select Target Folder...", "value" => ""]];
         foreach ($targets as $t) {
             if (!empty($t['Name'])) {
                 $folderOptions[] = ["caption" => $t['Name'], "value" => $t['Name']];
             }
         }
 
-        // 4. Dynamische Injektion in die Listen-Spalten
+        // 4. Dynamic UI Injection
         foreach ($form['elements'] as &$element) {
             if (!isset($element['name'])) continue;
 
-            // Injektion SEC-Keys in Targets-Liste
             if ($element['name'] === 'Targets') {
                 foreach ($element['columns'] as &$col) {
-                    if ($col['name'] === 'RemoteKey') $col['edit']['options'] = $serverOptions;
+                    if ($col['name'] === 'RemoteKey' || $col['name'] === 'LocalServerKey') {
+                        $col['edit']['options'] = $serverOptions;
+                    }
                 }
             }
-            // Injektion Folder-Namen in Roots-Liste
             if ($element['name'] === 'Roots') {
                 foreach ($element['columns'] as &$col) {
-                    if ($col['name'] === 'TargetFolder') $col['edit']['options'] = $folderOptions;
+                    if ($col['name'] === 'TargetFolder') {
+                        $col['edit']['options'] = $folderOptions;
+                    }
                 }
             }
         }
 
-        // 5. Generierung der SyncList mit Beibehaltung ALLER Zustände
+        // 5. Generate SyncList with State Retention
         $syncValues = [];
         $stateCache = [];
         foreach ($savedSync as $item) {
@@ -104,7 +111,7 @@ class RemoteSyncManager extends IPSModuleStrict
             }
         }
 
-        // 6. SyncList in Formular einsetzen
+        // 6. Inject Values into SyncList
         foreach ($form['elements'] as &$element) {
             if (isset($element['name']) && $element['name'] === 'SyncList') {
                 $element['values'] = $syncValues;
@@ -123,8 +130,26 @@ class RemoteSyncManager extends IPSModuleStrict
         }
     }
 
+    public function ToggleAll(string $Column, bool $State): void
+    {
+        $savedSync = json_decode($this->ReadPropertyString("SyncList"), true);
+        foreach ($savedSync as &$item) {
+            $item[$Column] = $State;
+        }
+        // Update UI immediately
+        $this->UpdateFormField("SyncList", "values", json_encode($savedSync));
+        // Save to Property so it persists
+        IPS_SetProperty($this->InstanceID, "SyncList", json_encode($savedSync));
+        IPS_ApplyChanges($this->InstanceID);
+    }
+
     public function UpdateUI(): void
     {
         $this->ReloadForm();
+    }
+
+    public function InstallRemoteScripts(): void
+    {
+        echo "Installer: This will be implemented in the next phase to deploy scripts to all targets.";
     }
 }
