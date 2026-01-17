@@ -23,76 +23,56 @@ class RemoteSyncManager extends IPSModuleStrict
     {
         parent::ApplyChanges();
         $this->WriteAttributeString("SyncListCache", $this->ReadPropertyString("SyncList"));
-        $this->SendDebug("RSM_Apply", "Cache reloaded from Property", 0);
-    }
-
-    private function GetWorkingSyncList(): array
-    {
-        $cache = $this->ReadAttributeString("SyncListCache");
-        if ($cache === "" || $cache === "[]") {
-            $cache = $this->ReadPropertyString("SyncList");
-        }
-        $data = json_decode($cache, true);
-        return is_array($data) ? $data : [];
     }
 
     /**
-     * PROXY OBJECT HANDLER (Blueprint Section 3)
-     * Wir nutzen kein Type-Hinting für $ListData, um das Proxy-Objekt zu erlauben.
+     * BLUEPRINT SOLUTION (Sektion 4 & 6): RequestAction als zentraler Handler
+     * Dies umgeht den Datentyp-Fehler bei der Installation.
      */
-    public function ProcessUIChange(string $Folder, $ListData): void
+    public function RequestAction($Ident, $Value): void
     {
-        $this->SendDebug("UI_EVENT_START", "Incoming Change for Folder: " . $Folder, 0);
-        $this->SendDebug("UI_DATA_TYPE", "Format received: " . gettype($ListData), 0);
+        $this->SendDebug("RSM_RequestAction", "Ident: $Ident", 0);
 
-        // Schritt 1: Manuelle Extraktion aus dem Proxy-Objekt
-        $extractedData = [];
-        if (is_iterable($ListData)) {
-            foreach ($ListData as $index => $row) {
-                $extractedData[] = $row;
-                // Detail-Log für jede Zeile
-                $this->SendDebug("UI_ROW_" . $index, json_encode($row), 0);
-            }
-        } else {
-            $this->SendDebug("UI_ERROR", "ListData is not iterable!", 0);
-            return;
+        switch ($Ident) {
+            case "UI_Update":
+                // Value enthält den JSON-String aus dem Inline-Loop des UI
+                $payload = json_decode($Value, true);
+                if (!$payload) return;
+
+                $folder = $payload['Folder'];
+                $uiData = $payload['Data'];
+
+                $this->SendDebug("RSM_UI_DATA", "Extracted items for $folder: " . count($uiData), 0);
+
+                $currentCache = json_decode($this->ReadAttributeString("SyncListCache"), true);
+                if (!is_array($currentCache)) $currentCache = [];
+
+                $map = [];
+                foreach ($currentCache as $item) {
+                    $map[$item['Folder'] . '_' . $item['ObjectID']] = $item;
+                }
+
+                foreach ($uiData as $row) {
+                    $key = $folder . '_' . $row['ObjectID'];
+                    $map[$key] = [
+                        "Folder"   => $folder,
+                        "ObjectID" => $row['ObjectID'],
+                        "Name"     => $row['Name'],
+                        "Active"   => $row['Active'],
+                        "Action"   => $row['Action'],
+                        "Delete"   => $row['Delete']
+                    ];
+                }
+
+                $final = json_encode(array_values($map));
+                $this->WriteAttributeString("SyncListCache", $final);
+                $this->SendDebug("RSM_CACHE", "Cache updated in RAM. Total items: " . count($map), 0);
+                break;
         }
-
-        $this->SendDebug("UI_EXTRACTION", "Successfully extracted " . count($extractedData) . " items", 0);
-
-        // Schritt 2: Bestehenden Speicher laden
-        $savedSync = $this->GetWorkingSyncList();
-        $this->SendDebug("RAM_BEFORE", "Current items in RAM: " . count($savedSync), 0);
-
-        // Schritt 3: Merging (Folder-spezifisch)
-        $map = [];
-        foreach ($savedSync as $item) {
-            $map[$item['Folder'] . '_' . $item['ObjectID']] = $item;
-        }
-
-        foreach ($extractedData as $uiItem) {
-            $key = $Folder . '_' . $uiItem['ObjectID'];
-            $map[$key] = [
-                "Folder"   => $Folder,
-                "ObjectID" => $uiItem['ObjectID'],
-                "Name"     => $uiItem['Name'],
-                "Active"   => $uiItem['Active'],
-                "Action"   => $uiItem['Action'],
-                "Delete"   => $uiItem['Delete']
-            ];
-        }
-
-        // Schritt 4: Zurück in das Attribut schreiben
-        $finalData = json_encode(array_values($map));
-        $this->WriteAttributeString("SyncListCache", $finalData);
-
-        $this->SendDebug("RAM_AFTER", "New items in RAM: " . count($map), 0);
-        $this->SendDebug("RAM_CONTENT", "Preview: " . substr($finalData, 0, 100) . "...", 0);
     }
 
     public function GetConfigurationForm(): string
     {
-        // Initialisierung
         $currentCache = $this->ReadAttributeString("SyncListCache");
         if ($currentCache === "" || $currentCache === "[]") {
             $this->WriteAttributeString("SyncListCache", $this->ReadPropertyString("SyncList"));
@@ -102,7 +82,7 @@ class RemoteSyncManager extends IPSModuleStrict
         $secID = $this->ReadPropertyInteger("LocalPasswordModuleID");
         $targets = json_decode($this->ReadPropertyString("Targets"), true);
         $roots = json_decode($this->ReadPropertyString("Roots"), true);
-        $savedSync = $this->GetWorkingSyncList();
+        $savedSync = json_decode($this->ReadAttributeString("SyncListCache"), true);
 
         // Dropdowns befüllen
         $serverOptions = [["caption" => "Please select...", "value" => ""]];
@@ -115,20 +95,17 @@ class RemoteSyncManager extends IPSModuleStrict
         $this->UpdateStaticFormElements($form['elements'], $serverOptions, $folderOptions);
 
         $stateCache = [];
-        foreach ($savedSync as $item) {
-            if (isset($item['Folder'], $item['ObjectID'])) {
-                $stateCache[$item['Folder'] . '_' . $item['ObjectID']] = $item;
-            }
+        if (is_array($savedSync)) {
+            foreach ($savedSync as $item) $stateCache[$item['Folder'] . '_' . $item['ObjectID']] = $item;
         }
 
-        // Dynamische Generierung
         foreach ($targets as $target) {
             if (empty($target['Name'])) continue;
             $folderName = $target['Name'];
             $syncValues = [];
 
             foreach ($roots as $root) {
-                if (isset($root['TargetFolder']) && $root['TargetFolder'] === $folderName && isset($root['LocalRootID']) && $root['LocalRootID'] > 0 && IPS_ObjectExists($root['LocalRootID'])) {
+                if (($root['TargetFolder'] ?? '') === $folderName && ($root['LocalRootID'] ?? 0) > 0 && IPS_ObjectExists($root['LocalRootID'])) {
                     $foundVars = [];
                     $this->GetRecursiveVariables($root['LocalRootID'], $foundVars);
                     foreach ($foundVars as $vID) {
@@ -147,8 +124,11 @@ class RemoteSyncManager extends IPSModuleStrict
 
             $listName = "List_" . md5($folderName);
 
-            // STABILSTE ÜBERGABE: Wir nutzen das $$ Pattern für das Proxy-Objekt
-            $onChange = "RSM_ProcessUIChange(\$id, '$folderName', \$$listName);";
+            /**
+             * BLUEPRINT PATTERN (Sektion 4): Inline-Loop zur Konvertierung
+             * Wir bauen das JSON direkt im Browser zusammen und senden es an RequestAction
+             */
+            $onChange = "\$D=[]; foreach(\$$listName as \$r){ \$D[]=\$r; } IPS_RequestAction(\$id, 'UI_Update', json_encode(['Folder'=>'$folderName', 'Data'=>\$D]));";
 
             $form['actions'][] = [
                 "type"    => "ExpansionPanel",
@@ -203,9 +183,9 @@ class RemoteSyncManager extends IPSModuleStrict
 
     public function ToggleAll(string $Column, bool $State, string $Folder): void
     {
-        $this->SendDebug("BATCH_START", "Column: $Column, State: $State, Folder: $Folder", 0);
         $roots = json_decode($this->ReadPropertyString("Roots"), true);
-        $currentData = $this->GetWorkingSyncList();
+        $currentData = json_decode($this->ReadAttributeString("SyncListCache"), true);
+        if (!is_array($currentData)) $currentData = [];
 
         $map = [];
         foreach ($currentData as $item) $map[$item['Folder'] . '_' . $item['ObjectID']] = $item;
@@ -227,19 +207,14 @@ class RemoteSyncManager extends IPSModuleStrict
         }
         $this->WriteAttributeString("SyncListCache", json_encode(array_values($map)));
         $this->UpdateFormField("List_" . md5($Folder), "values", json_encode($uiValues));
-        $this->SendDebug("BATCH_FINISH", "Total items in RAM: " . count($map), 0);
     }
 
     public function SaveSelections(): void
     {
         $data = $this->ReadAttributeString("SyncListCache");
-        $this->SendDebug("SAVE_COMMIT", "Payload length: " . strlen($data), 0);
-
         IPS_SetProperty($this->InstanceID, "SyncList", $data);
-        if (IPS_ApplyChanges($this->InstanceID)) {
-            $this->SendDebug("SAVE_SUCCESS", "ApplyChanges completed", 0);
-            echo "✅ Selections successfully persisted.";
-        }
+        IPS_ApplyChanges($this->InstanceID);
+        echo "✅ Selections successfully persisted.";
     }
 
     private function GetRecursiveVariables(int $parentID, array &$result): void
