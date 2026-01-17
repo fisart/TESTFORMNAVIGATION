@@ -151,8 +151,10 @@ class RemoteSyncManager extends IPSModuleStrict
 
     public function ToggleAll(string $Column, bool $State, string $Folder): void
     {
+        // 1. Alle Daten laden
         $roots = json_decode($this->ReadPropertyString("Roots"), true);
-        $savedSync = json_decode($this->ReadPropertyString("SyncList"), true);
+        $rawSync = $this->ReadPropertyString("SyncList");
+        $savedSync = json_decode($rawSync, true);
         if (!is_array($savedSync)) $savedSync = [];
 
         $currentMap = [];
@@ -163,14 +165,20 @@ class RemoteSyncManager extends IPSModuleStrict
             }
         }
 
+        // 2. Live-Scan und Status-Update für den betroffenen Folder
+        $uiValuesForThisFolder = []; // Wir sammeln hier nur die Daten für das UI-Update
         foreach ($roots as $root) {
             $rootID = $root['LocalRootID'] ?? 0;
             $targetFolder = $root['TargetFolder'] ?? '';
+
             if ($targetFolder === $Folder && $rootID > 0 && IPS_ObjectExists($rootID)) {
                 $foundVars = [];
                 $this->GetRecursiveVariables($rootID, $foundVars);
+
                 foreach ($foundVars as $vID) {
                     $key = $Folder . '_' . $vID;
+
+                    // Bestehenden Eintrag ändern oder neuen anlegen
                     if (isset($currentMap[$key])) {
                         $currentMap[$key][$Column] = $State;
                     } else {
@@ -178,17 +186,29 @@ class RemoteSyncManager extends IPSModuleStrict
                             "Folder"   => $Folder,
                             "ObjectID" => $vID,
                             "Name"     => IPS_GetName($vID),
-                            "Active"   => ($Column === 'Active') ? $State : false,
-                            "Action"   => ($Column === 'Action') ? $State : false,
-                            "Delete"   => ($Column === 'Delete') ? $State : false
+                            "Active"   => ($Column === 'Active' ? $State : false),
+                            "Action"   => ($Column === 'Action' ? $State : false),
+                            "Delete"   => ($Column === 'Delete' ? $State : false)
                         ];
                     }
+                    // Für das UI-Update aufbereiten
+                    $uiValuesForThisFolder[] = $currentMap[$key];
                 }
             }
         }
 
-        IPS_SetProperty($this->InstanceID, "SyncList", json_encode(array_values($currentMap)));
-        IPS_ApplyChanges($this->InstanceID);
+        // 3. Den neuen Gesamtzustand in der Property "parken" (ohne ApplyChanges!)
+        $newSyncList = array_values($currentMap);
+        IPS_SetProperty($this->InstanceID, "SyncList", json_encode($newSyncList));
+
+        // 4. CHIRURGISCHES UI-UPDATE: Nur die Liste in diesem einen ExpansionPanel aktualisieren
+        // Wir nutzen exakt denselben MD5-Namen wie in GetConfigurationForm
+        $listName = "List_" . md5($Folder);
+        $this->UpdateFormField($listName, "values", json_encode($uiValuesForThisFolder));
+
+        // 5. WICHTIG: Den "Übernehmen" Button in der Konsole aktivieren
+        // Da wir IPS_SetProperty genutzt haben, weiß Symcon, dass Daten da sind.
+        // Wir rufen aber KEIN ApplyChanges auf, damit das Fenster offen bleibt.
     }
 
     private function GetRecursiveVariables(int $parentID, array &$result): void
