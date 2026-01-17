@@ -141,15 +141,56 @@ class RemoteSyncManager extends IPSModuleStrict
 
     public function ToggleAll(string $Column, bool $State, string $Folder): void
     {
+        // 1. Alle benötigten Daten laden
+        $roots = json_decode($this->ReadPropertyString("Roots"), true);
         $savedSync = json_decode($this->ReadPropertyString("SyncList"), true);
         if (!is_array($savedSync)) $savedSync = [];
 
-        foreach ($savedSync as &$item) {
-            if (isset($item['Folder']) && $item['Folder'] === $Folder) {
-                $item[$Column] = $State;
+        // 2. Wir bauen ein Mapping der existierenden Einträge (um nichts zu löschen)
+        // Key: Folder_ID
+        $currentMap = [];
+        foreach ($savedSync as $item) {
+            if (isset($item['Folder'], $item['ObjectID'])) {
+                $key = $item['Folder'] . '_' . $item['ObjectID'];
+                $currentMap[$key] = $item;
             }
         }
-        IPS_SetProperty($this->InstanceID, "SyncList", json_encode($savedSync));
+
+        // 3. LIVE-SCAN: Wir gehen durch alle Roots, die zu diesem Folder gehören
+        foreach ($roots as $root) {
+            $rootID = $root['LocalRootID'] ?? 0;
+            $targetFolder = $root['TargetFolder'] ?? '';
+
+            if ($targetFolder === $Folder && $rootID > 0 && IPS_ObjectExists($rootID)) {
+                $foundVars = [];
+                $this->GetRecursiveVariables($rootID, $foundVars);
+
+                foreach ($foundVars as $vID) {
+                    $key = $Folder . '_' . $vID;
+
+                    // Wenn der Eintrag schon existiert, aktualisieren wir nur die eine Spalte
+                    if (isset($currentMap[$key])) {
+                        $currentMap[$key][$Column] = $State;
+                    } else {
+                        // Wenn der Eintrag neu ist (Live-Scan Treffer), legen wir ihn neu an
+                        $currentMap[$key] = [
+                            "Folder"   => $Folder,
+                            "ObjectID" => $vID,
+                            "Name"     => IPS_GetName($vID),
+                            "Active"   => ($Column === 'Active') ? $State : false,
+                            "Action"   => ($Column === 'Action') ? $State : false,
+                            "Delete"   => ($Column === 'Delete') ? $State : false
+                        ];
+                    }
+                }
+            }
+        }
+
+        // 4. Die Map wieder in ein flaches Array umwandeln für die Property
+        $newSyncList = array_values($currentMap);
+
+        // 5. Speichern
+        IPS_SetProperty($this->InstanceID, "SyncList", json_encode($newSyncList));
         IPS_ApplyChanges($this->InstanceID);
     }
 
