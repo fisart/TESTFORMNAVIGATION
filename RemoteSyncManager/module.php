@@ -151,10 +151,8 @@ class RemoteSyncManager extends IPSModuleStrict
 
     public function ToggleAll(string $Column, bool $State, string $Folder): void
     {
-        // 1. Alle Daten laden
         $roots = json_decode($this->ReadPropertyString("Roots"), true);
-        $rawSync = $this->ReadPropertyString("SyncList");
-        $savedSync = json_decode($rawSync, true);
+        $savedSync = json_decode($this->ReadPropertyString("SyncList"), true);
         if (!is_array($savedSync)) $savedSync = [];
 
         $currentMap = [];
@@ -165,8 +163,7 @@ class RemoteSyncManager extends IPSModuleStrict
             }
         }
 
-        // 2. Live-Scan und Status-Update für den betroffenen Folder
-        $uiValuesForThisFolder = []; // Wir sammeln hier nur die Daten für das UI-Update
+        $uiValuesForThisFolder = [];
         foreach ($roots as $root) {
             $rootID = $root['LocalRootID'] ?? 0;
             $targetFolder = $root['TargetFolder'] ?? '';
@@ -177,38 +174,40 @@ class RemoteSyncManager extends IPSModuleStrict
 
                 foreach ($foundVars as $vID) {
                     $key = $Folder . '_' . $vID;
-
-                    // Bestehenden Eintrag ändern oder neuen anlegen
                     if (isset($currentMap[$key])) {
                         $currentMap[$key][$Column] = $State;
                     } else {
                         $currentMap[$key] = [
                             "Folder"   => $Folder,
                             "ObjectID" => $vID,
-                            "Name"     => IPS_GetName($vID),
+                            "Name" => IPS_GetName($vID),
                             "Active"   => ($Column === 'Active' ? $State : false),
                             "Action"   => ($Column === 'Action' ? $State : false),
                             "Delete"   => ($Column === 'Delete' ? $State : false)
                         ];
                     }
-                    // Für das UI-Update aufbereiten
                     $uiValuesForThisFolder[] = $currentMap[$key];
                 }
             }
         }
 
-        // 3. Den neuen Gesamtzustand in der Property "parken" (ohne ApplyChanges!)
-        $newSyncList = array_values($currentMap);
-        IPS_SetProperty($this->InstanceID, "SyncList", json_encode($newSyncList));
+        // In Property parken (Arbeitsspeicher)
+        IPS_SetProperty($this->InstanceID, "SyncList", json_encode(array_values($currentMap)));
 
-        // 4. CHIRURGISCHES UI-UPDATE: Nur die Liste in diesem einen ExpansionPanel aktualisieren
-        // Wir nutzen exakt denselben MD5-Namen wie in GetConfigurationForm
-        $listName = "List_" . md5($Folder);
-        $this->UpdateFormField($listName, "values", json_encode($uiValuesForThisFolder));
+        // UI Liste sofort aktualisieren
+        $this->UpdateFormField("List_" . md5($Folder), "values", json_encode($uiValuesForThisFolder));
 
-        // 5. WICHTIG: Den "Übernehmen" Button in der Konsole aktivieren
-        // Da wir IPS_SetProperty genutzt haben, weiß Symcon, dass Daten da sind.
-        // Wir rufen aber KEIN ApplyChanges auf, damit das Fenster offen bleibt.
+        // Status-Label aktualisieren
+        $this->UpdateFormField("SaveNote", "visible", true);
+        $this->UpdateFormField("BtnSave", "visible", true);
+    }
+
+    // Neue Funktion zum finalen Speichern
+    public function SaveSelections(): void
+    {
+        // Schreibt alle mit IPS_SetProperty gesetzten Werte final in die settings.json
+        IPS_ApplyChanges($this->InstanceID);
+        echo "All selections saved successfully.";
     }
 
     private function GetRecursiveVariables(int $parentID, array &$result): void
@@ -219,7 +218,11 @@ class RemoteSyncManager extends IPSModuleStrict
             if ($obj['HasChildren']) $this->GetRecursiveVariables($childID, $result);
         }
     }
-
+    public function SaveSelections(): void
+    {
+        IPS_ApplyChanges($this->InstanceID);
+        echo "All selections saved successfully.";
+    }
     public function UpdateUI(): void
     {
         $this->ReloadForm();
