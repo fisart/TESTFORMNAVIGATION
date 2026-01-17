@@ -30,52 +30,19 @@
             "add": true,
             "delete": true,
             "columns": [
-                {
-                    "name": "Name",
-                    "caption": "Folder Name",
-                    "width": "150px",
-                    "add": "",
-                    "edit": { "type": "ValidationTextBox" }
+                { "name": "Name", "caption": "Folder Name", "width": "150px", "add": "", "edit": { "type": "ValidationTextBox" } },
+                { "name": "RemoteKey", "caption": "Remote Server Key", "width": "200px", "add": "", "edit": { "type": "Select", "options": [] } },
+                { 
+                    "name": "RemoteRootID", "caption": "Data Target ID", "width": "120px", "add": 10000, 
+                    "edit": { "type": "NumberSpinner", "minimum": 10000, "maximum": 99999 } 
                 },
-                {
-                    "name": "RemoteKey",
-                    "caption": "Remote Server Key",
-                    "width": "200px",
-                    "add": "",
-                    "edit": { "type": "Select", "options": [] }
+                { 
+                    "name": "RemoteScriptRootID", "caption": "Script Home ID", "width": "120px", "add": 10000, 
+                    "edit": { "type": "NumberSpinner", "minimum": 10000, "maximum": 99999 } 
                 },
-                {
-                    "name": "RemoteRootID",
-                    "caption": "Data Target ID",
-                    "width": "120px",
-                    "add": 10000,
-                    "edit": {
-                        "type": "NumberSpinner",
-                        "minimum": 10000,
-                        "maximum": 99999
-                    }
-                },
-                {
-                    "name": "RemoteScriptRootID",
-                    "caption": "Script Home ID",
-                    "width": "120px",
-                    "add": 10000,
-                    "edit": {
-                        "type": "NumberSpinner",
-                        "minimum": 10000,
-                        "maximum": 99999
-                    }
-                },
-                {
-                    "name": "RemoteSecretsID",
-                    "caption": "Remote SEC ID",
-                    "width": "120px",
-                    "add": 10000,
-                    "edit": {
-                        "type": "NumberSpinner",
-                        "minimum": 10000,
-                        "maximum": 99999
-                    }
+                { 
+                    "name": "RemoteSecretsID", "caption": "Remote SEC ID", "width": "120px", "add": 10000, 
+                    "edit": { "type": "NumberSpinner", "minimum": 10000, "maximum": 99999 } 
                 }
             ]
         },
@@ -88,45 +55,16 @@
             "add": true,
             "delete": true,
             "columns": [
-                {
-                    "name": "LocalRootID",
-                    "caption": "Local Object (Source)",
-                    "width": "300px",
-                    "add": 0,
-                    "edit": { "type": "SelectObject" }
-                },
-                {
-                    "name": "TargetFolder",
-                    "caption": "Assign to Folder",
-                    "width": "200px",
-                    "add": "",
-                    "edit": { "type": "Select", "options": [] }
-                }
+                { "name": "LocalRootID", "caption": "Local Object (Source)", "width": "300px", "add": 0, "edit": { "type": "SelectObject" } },
+                { "name": "TargetFolder", "caption": "Assign to Folder", "width": "200px", "add": "", "edit": { "type": "Select", "options": [] } }
             ]
         },
         { "type": "Label", "caption": "Step 3: Individual Selection per Target" }
     ],
     "actions": [
-        {
-            "type": "Label",
-            "name": "SaveNote",
-            "caption": "⚠️ UNSAVED CHANGES! Please click Save to persist selections.",
-            "visible": false,
-            "bold": true,
-            "color": "#FF0000"
-        },
-        {
-            "type": "Button",
-            "name": "BtnSave",
-            "caption": "💾 SAVE ALL SELECTIONS",
-            "visible": false,
-            "onClick": "RSM_SaveSelections($id);"
-        },
+        { "type": "Label", "name": "SaveNote", "caption": "🔴 UNSAVED SELECTION CHANGES! Please click Save to persist.", "visible": false, "bold": true, "color": "#FF0000" },
+        { "type": "Button", "name": "BtnSave", "caption": "💾 SAVE ALL SELECTIONS", "visible": false, "onClick": "RSM_SaveSelections($id);" },
         { "type": "Label", "caption": "________________________________________________________________________________" },
-        {
-            "type": "Button",
-            "caption": "Force Refresh UI",
-            "onClick": "RSM_UpdateUI($id);"
-        }
+        { "type": "Button", "caption": "Force Refresh UI", "onClick": "RSM_UpdateUI($id);" }
     ]
 }
