@@ -15,14 +15,11 @@ class RemoteSyncManager extends IPSModuleStrict
         $this->RegisterPropertyString("Targets", "[]");
         $this->RegisterPropertyString("Roots", "[]");
         $this->RegisterPropertyString("SyncList", "[]");
-
-        $this->RegisterAttributeBoolean("ConfigDirty", false);
     }
 
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
-        $this->WriteAttributeBoolean("ConfigDirty", false);
     }
 
     public function GetConfigurationForm(): string
@@ -33,9 +30,7 @@ class RemoteSyncManager extends IPSModuleStrict
         $roots = json_decode($this->ReadPropertyString("Roots"), true);
         $savedSync = json_decode($this->ReadPropertyString("SyncList"), true);
 
-        $isDirty = $this->ReadAttributeBoolean("ConfigDirty");
-
-        // 1. SEC Keys
+        // 1. Fetch SEC Keys
         $serverOptions = [["caption" => "Please select...", "value" => ""]];
         if ($secID > 0 && IPS_InstanceExists($secID)) {
             $keys = json_decode(@SEC_GetKeys($secID), true);
@@ -50,14 +45,8 @@ class RemoteSyncManager extends IPSModuleStrict
             if (!empty($t['Name'])) $folderOptions[] = ["caption" => $t['Name'], "value" => $t['Name']];
         }
 
-        // 3. Static UI Injection & Save Button Visibility
+        // 3. Static UI Injection
         $this->UpdateStaticFormElements($form['elements'], $serverOptions, $folderOptions);
-
-        foreach ($form['actions'] as &$action) {
-            if (isset($action['name']) && ($action['name'] === 'SaveNote' || $action['name'] === 'BtnSave')) {
-                $action['visible'] = $isDirty;
-            }
-        }
 
         // 4. State Cache
         $stateCache = [];
@@ -176,13 +165,7 @@ class RemoteSyncManager extends IPSModuleStrict
                 "Delete" => $uiItem['Delete']
             ];
         }
-
         IPS_SetProperty($this->InstanceID, "SyncList", json_encode(array_values($map)));
-
-        // WICHTIG: Flag setzen UND UI aktualisieren
-        $this->WriteAttributeBoolean("ConfigDirty", true);
-        $this->UpdateFormField("SaveNote", "visible", true);
-        $this->UpdateFormField("BtnSave", "visible", true);
     }
 
     public function ToggleAll(string $Column, bool $State, string $Folder): void
@@ -213,13 +196,7 @@ class RemoteSyncManager extends IPSModuleStrict
         }
 
         IPS_SetProperty($this->InstanceID, "SyncList", json_encode(array_values($currentMap)));
-
         $this->UpdateFormField("List_" . md5($Folder), "values", json_encode($uiValues));
-
-        // WICHTIG: Flag setzen UND UI aktualisieren
-        $this->WriteAttributeBoolean("ConfigDirty", true);
-        $this->UpdateFormField("SaveNote", "visible", true);
-        $this->UpdateFormField("BtnSave", "visible", true);
     }
 
     private function GetRecursiveVariables(int $parentID, array &$result): void
@@ -233,9 +210,8 @@ class RemoteSyncManager extends IPSModuleStrict
 
     public function SaveSelections(): void
     {
-        // Vor ApplyChanges das Dirty-Flag löschen
-        $this->WriteAttributeBoolean("ConfigDirty", false);
         IPS_ApplyChanges($this->InstanceID);
+        echo "Selections saved and applied.";
     }
 
     public function UpdateUI(): void
@@ -244,6 +220,6 @@ class RemoteSyncManager extends IPSModuleStrict
     }
     public function InstallRemoteScripts(string $Folder): void
     {
-        echo "Installer for: $Folder";
+        echo "Installing scripts for: $Folder";
     }
 }

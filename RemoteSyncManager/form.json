@@ -62,8 +62,9 @@
         { "type": "Label", "caption": "Step 3: Individual Selection per Target" }
     ],
     "actions": [
-        { "type": "Label", "name": "SaveNote", "caption": "🔴 UNSAVED SELECTION CHANGES! Please click Save to persist.", "visible": false, "bold": true, "color": "#FF0000" },
-        { "type": "Button", "name": "BtnSave", "caption": "💾 SAVE ALL SELECTIONS", "visible": false, "onClick": "RSM_SaveSelections($id);" },
+        { "type": "Label", "caption": "Configuration Management", "bold": true },
+        { "type": "Button", "name": "BtnSave", "caption": "💾 APPLY & SAVE ALL SELECTIONS", "onClick": "RSM_SaveSelections($id);" },
+        { "type": "Label", "caption": "Note: Use the button above to persist any changes made in Step 3.", "italic": true },
         { "type": "Label", "caption": "________________________________________________________________________________" },
         { "type": "Button", "caption": "Force Refresh UI", "onClick": "RSM_UpdateUI($id);" }
     ]
