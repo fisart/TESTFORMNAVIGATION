@@ -65,7 +65,6 @@ class RemoteSyncManager extends IPSModuleStrict
 
         $form = json_decode(file_get_contents(__DIR__ . "/form.json"), true);
 
-        // Statische Footer-Buttons parken
         $staticFooter = $form['actions'];
         $form['actions'] = [];
 
@@ -116,7 +115,7 @@ class RemoteSyncManager extends IPSModuleStrict
 
             $form['actions'][] = [
                 "type"    => "ExpansionPanel",
-                "caption" => "TARGET: " . strtoupper($folderName) . " (" . count($syncValues) . " Variables)",
+                "caption" => "TARGET SELECTION: " . strtoupper($folderName) . " (" . count($syncValues) . " Variables)",
                 "items"   => [
                     [
                         "type" => "RowLayout",
@@ -126,8 +125,8 @@ class RemoteSyncManager extends IPSModuleStrict
                             ["type" => "Label", "caption" => "|", "width" => "15px"],
                             ["type" => "Button", "caption" => "Action ALL", "onClick" => "RSM_ToggleAll(\$id, 'Action', true, '$folderName');", "width" => "90px"],
                             ["type" => "Label", "caption" => "|", "width" => "15px"],
-                            // LOKALER SAVE BUTTON
-                            ["type" => "Button", "caption" => "💾 SAVE THIS SET", "onClick" => "RSM_SaveSelections(\$id);", "width" => "130px", "confirm" => "Save all pending changes for this and other sets?"],
+                            // AKTUALISIERTER BUTTON TEXT
+                            ["type" => "Button", "caption" => "💾 SAVE ALL SETS", "onClick" => "RSM_SaveSelections(\$id);", "width" => "130px", "confirm" => "This will save all changes across all targets. Continue?"],
                             ["type" => "Button", "caption" => "INSTALL REMOTE", "onClick" => "RSM_InstallRemoteScripts(\$id, '$folderName');"]
                         ]
                     ],
@@ -151,7 +150,6 @@ class RemoteSyncManager extends IPSModuleStrict
             ];
         }
 
-        // Globalen Footer wieder anhängen (als Backup)
         foreach ($staticFooter as $btn) {
             $form['actions'][] = $btn;
         }
@@ -209,7 +207,7 @@ class RemoteSyncManager extends IPSModuleStrict
         $data = $this->ReadAttributeString("SyncListCache");
         IPS_SetProperty($this->InstanceID, "SyncList", $data);
         IPS_ApplyChanges($this->InstanceID);
-        echo "✅ All selections (all targets) saved.";
+        echo "✅ All selection sets have been saved successfully.";
     }
 
     private function GetRecursiveVariables(int $parentID, array &$result): void
@@ -227,6 +225,6 @@ class RemoteSyncManager extends IPSModuleStrict
     }
     public function InstallRemoteScripts(string $Folder): void
     {
-        echo "Installing scripts for: $Folder";
+        echo "Installer for: $Folder";
     }
 }
