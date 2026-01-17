@@ -28,8 +28,6 @@
                 { "name": "LocalServerKey", "caption": "Local Key (Reverse)", "width": "150px", "add": "", "edit": { "type": "Select", "options": [] } }
             ]
         },
-        { "type": "Button", "caption": "INSTALL/UPDATE REMOTE SCRIPTS ON ALL TARGETS", "onClick": "RSM_InstallRemoteScripts($id);" },
-
         { "type": "Label", "caption": "Step 2: Map Local Roots to Folders" },
         {
             "type": "List",
@@ -44,17 +42,22 @@
             ]
         },
 
-        { "type": "Label", "caption": "Step 3: Selection & Batch Tools" },
+        { "type": "Label", "caption": "Step 3: Selection & Tools" },
+        { "type": "Button", "caption": "INSTALL/UPDATE REMOTE SCRIPTS ON ALL TARGETS", "onClick": "RSM_InstallRemoteScripts($id);" },
+        { "type": "Label", "caption": "Batch Tools (Set entire column)", "bold": true },
         { "type": "RowLayout", "items": [
+            { "type": "Select", "name": "BatchFilter", "caption": "Target Filter:", "width": "200px", "options": [
+                { "caption": "All Targets", "value": "ALL" }
+            ]},
             { "type": "Label", "caption": "Sync:", "width": "40px" },
-            { "type": "Button", "caption": "ALL", "onClick": "RSM_ToggleAll($id, 'Active', true);", "width": "60px" },
-            { "type": "Button", "caption": "NONE", "onClick": "RSM_ToggleAll($id, 'Active', false);", "width": "60px" },
-            { "type": "Label", "caption": " | Action:", "width": "60px" },
-            { "type": "Button", "caption": "ALL", "onClick": "RSM_ToggleAll($id, 'Action', true);", "width": "60px" },
-            { "type": "Button", "caption": "NONE", "onClick": "RSM_ToggleAll($id, 'Action', false);", "width": "60px" },
-            { "type": "Label", "caption": " | Delete:", "width": "60px" },
-            { "type": "Button", "caption": "ALL", "onClick": "RSM_ToggleAll($id, 'Delete', true);", "width": "60px" },
-            { "type": "Button", "caption": "NONE", "onClick": "RSM_ToggleAll($id, 'Delete', false);", "width": "60px" }
+            { "type": "Button", "caption": "ALL", "onClick": "RSM_ToggleAll($id, 'Active', true, $BatchFilter);", "width": "60px" },
+            { "type": "Button", "caption": "NONE", "onClick": "RSM_ToggleAll($id, 'Active', false, $BatchFilter);", "width": "60px" },
+            { "type": "Label", "caption": " | Action:", "width": "50px" },
+            { "type": "Button", "caption": "ALL", "onClick": "RSM_ToggleAll($id, 'Action', true, $BatchFilter);", "width": "60px" },
+            { "type": "Button", "caption": "NONE", "onClick": "RSM_ToggleAll($id, 'Action', false, $BatchFilter);", "width": "60px" },
+            { "type": "Label", "caption": " | Delete:", "width": "50px" },
+            { "type": "Button", "caption": "ALL", "onClick": "RSM_ToggleAll($id, 'Delete', true, $BatchFilter);", "width": "60px" },
+            { "type": "Button", "caption": "NONE", "onClick": "RSM_ToggleAll($id, 'Delete', false, $BatchFilter);", "width": "60px" }
         ]},
         {
             "type": "List",
@@ -74,7 +77,6 @@
         }
     ],
     "actions": [
-        { "type": "Label", "caption": "Status Controller:" },
         { "type": "Button", "caption": "Force Refresh UI", "onClick": "RSM_UpdateUI($id);" }
     ]
 }

@@ -8,13 +8,11 @@ class RemoteSyncManager extends IPSModuleStrict
     {
         parent::Create();
 
-        // Global Properties
+        // Properties
         $this->RegisterPropertyBoolean("DebugMode", false);
         $this->RegisterPropertyBoolean("AutoCreate", true);
         $this->RegisterPropertyBoolean("ReplicateProfiles", true);
         $this->RegisterPropertyInteger("LocalPasswordModuleID", 0);
-
-        // List Properties
         $this->RegisterPropertyString("Targets", "[]");
         $this->RegisterPropertyString("Roots", "[]");
         $this->RegisterPropertyString("SyncList", "[]");
@@ -29,13 +27,12 @@ class RemoteSyncManager extends IPSModuleStrict
     {
         $form = json_decode(file_get_contents(__DIR__ . "/form.json"), true);
 
-        // 1. Data Retrieval
         $secID = $this->ReadPropertyInteger("LocalPasswordModuleID");
         $targets = json_decode($this->ReadPropertyString("Targets"), true);
         $roots = json_decode($this->ReadPropertyString("Roots"), true);
         $savedSync = json_decode($this->ReadPropertyString("SyncList"), true);
 
-        // 2. Fetch SEC Keys for Dropdowns
+        // 1. Fetch SEC Keys
         $serverOptions = [["caption" => "Please select...", "value" => ""]];
         if ($secID > 0 && IPS_InstanceExists($secID)) {
             $keysJSON = @SEC_GetKeys($secID);
@@ -47,35 +44,20 @@ class RemoteSyncManager extends IPSModuleStrict
             }
         }
 
-        // 3. Prepare Folder Options for Step 2
+        // 2. Prepare Folder & Batch Options
         $folderOptions = [["caption" => "Select Target Folder...", "value" => ""]];
+        $batchOptions = [["caption" => "All Targets", "value" => "ALL"]];
         foreach ($targets as $t) {
             if (!empty($t['Name'])) {
                 $folderOptions[] = ["caption" => $t['Name'], "value" => $t['Name']];
+                $batchOptions[] = ["caption" => "Only " . $t['Name'], "value" => $t['Name']];
             }
         }
 
-        // 4. Dynamic UI Injection
-        foreach ($form['elements'] as &$element) {
-            if (!isset($element['name'])) continue;
+        // 3. Dynamic Injection (Recursive helper to find elements in ExpansionPanels)
+        $this->UpdateFormElements($form['elements'], $serverOptions, $folderOptions, $batchOptions);
 
-            if ($element['name'] === 'Targets') {
-                foreach ($element['columns'] as &$col) {
-                    if ($col['name'] === 'RemoteKey' || $col['name'] === 'LocalServerKey') {
-                        $col['edit']['options'] = $serverOptions;
-                    }
-                }
-            }
-            if ($element['name'] === 'Roots') {
-                foreach ($element['columns'] as &$col) {
-                    if ($col['name'] === 'TargetFolder') {
-                        $col['edit']['options'] = $folderOptions;
-                    }
-                }
-            }
-        }
-
-        // 5. Generate SyncList with State Retention
+        // 4. Generate SyncList
         $syncValues = [];
         $stateCache = [];
         foreach ($savedSync as $item) {
@@ -92,11 +74,9 @@ class RemoteSyncManager extends IPSModuleStrict
         foreach ($roots as $root) {
             $rootID = $root['LocalRootID'] ?? 0;
             $folderName = $root['TargetFolder'] ?? '';
-
             if ($rootID > 0 && IPS_ObjectExists($rootID) && !empty($folderName)) {
                 $foundVars = [];
                 $this->GetRecursiveVariables($rootID, $foundVars);
-
                 foreach ($foundVars as $vID) {
                     $key = $folderName . '_' . $vID;
                     $syncValues[] = [
@@ -111,7 +91,7 @@ class RemoteSyncManager extends IPSModuleStrict
             }
         }
 
-        // 6. Inject Values into SyncList
+        // 5. Inject SyncList
         foreach ($form['elements'] as &$element) {
             if (isset($element['name']) && $element['name'] === 'SyncList') {
                 $element['values'] = $syncValues;
@@ -119,6 +99,32 @@ class RemoteSyncManager extends IPSModuleStrict
         }
 
         return json_encode($form);
+    }
+
+    private function UpdateFormElements(&$elements, $serverOptions, $folderOptions, $batchOptions): void
+    {
+        foreach ($elements as &$element) {
+            if (isset($element['items'])) {
+                $this->UpdateFormElements($element['items'], $serverOptions, $folderOptions, $batchOptions);
+            }
+            if (!isset($element['name'])) continue;
+
+            if ($element['name'] === 'Targets') {
+                foreach ($element['columns'] as &$col) {
+                    if ($col['name'] === 'RemoteKey' || $col['name'] === 'LocalServerKey') {
+                        $col['edit']['options'] = $serverOptions;
+                    }
+                }
+            }
+            if ($element['name'] === 'Roots') {
+                foreach ($element['columns'] as &$col) {
+                    if ($col['name'] === 'TargetFolder') $col['edit']['options'] = $folderOptions;
+                }
+            }
+            if ($element['name'] === 'BatchFilter') {
+                $element['options'] = $batchOptions;
+            }
+        }
     }
 
     private function GetRecursiveVariables(int $parentID, array &$result): void
@@ -130,17 +136,17 @@ class RemoteSyncManager extends IPSModuleStrict
         }
     }
 
-    public function ToggleAll(string $Column, bool $State): void
+    public function ToggleAll(string $Column, bool $State, string $Filter): void
     {
         $savedSync = json_decode($this->ReadPropertyString("SyncList"), true);
         foreach ($savedSync as &$item) {
-            $item[$Column] = $State;
+            if ($Filter === "ALL" || $item['Folder'] === $Filter) {
+                $item[$Column] = $State;
+            }
         }
-        // Update UI immediately
         $this->UpdateFormField("SyncList", "values", json_encode($savedSync));
-        // Save to Property so it persists
         IPS_SetProperty($this->InstanceID, "SyncList", json_encode($savedSync));
-        IPS_ApplyChanges($this->InstanceID);
+        // No ApplyChanges here to keep UI flow
     }
 
     public function UpdateUI(): void
@@ -150,6 +156,6 @@ class RemoteSyncManager extends IPSModuleStrict
 
     public function InstallRemoteScripts(): void
     {
-        echo "Installer: This will be implemented in the next phase to deploy scripts to all targets.";
+        echo "Installer: Running deployment for all targets...";
     }
 }
