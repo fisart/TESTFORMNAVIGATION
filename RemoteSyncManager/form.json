@@ -9,9 +9,9 @@
             "add": true,
             "delete": true,
             "columns": [
-                { "name": "Name", "caption": "Folder Name", "width": "200px", "edit": { "type": "ValidationTextBox" } },
-                { "name": "RemoteKey", "caption": "SEC Server Key", "width": "200px", "edit": { "type": "ValidationTextBox" } },
-                { "name": "RemoteRootID", "caption": "Remote Target ID", "width": "120px", "edit": { "type": "NumberSpinner" } }
+                { "name": "Name", "caption": "Folder Name", "width": "200px", "add": "", "edit": { "type": "ValidationTextBox" } },
+                { "name": "RemoteKey", "caption": "SEC Server Key", "width": "200px", "add": "", "edit": { "type": "ValidationTextBox" } },
+                { "name": "RemoteRootID", "caption": "Remote Target ID", "width": "120px", "add": 0, "edit": { "type": "NumberSpinner" } }
             ]
         },
         { "type": "Label", "caption": "Step 2: Map Local Roots to Folders" },
@@ -23,11 +23,12 @@
             "add": true,
             "delete": true,
             "columns": [
-                { "name": "LocalRootID", "caption": "Local Object (Source)", "width": "300px", "edit": { "type": "SelectObject" } },
+                { "name": "LocalRootID", "caption": "Local Object (Source)", "width": "300px", "add": 0, "edit": { "type": "SelectObject" } },
                 { 
                     "name": "TargetFolder", 
                     "caption": "Assign to Folder", 
                     "width": "200px", 
+                    "add": "",
                     "edit": { "type": "Select", "options": [] } 
                 }
             ]
