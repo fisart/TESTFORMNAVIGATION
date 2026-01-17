@@ -218,11 +218,7 @@ class RemoteSyncManager extends IPSModuleStrict
             if ($obj['HasChildren']) $this->GetRecursiveVariables($childID, $result);
         }
     }
-    public function SaveSelections(): void
-    {
-        IPS_ApplyChanges($this->InstanceID);
-        echo "All selections saved successfully.";
-    }
+
     public function UpdateUI(): void
     {
         $this->ReloadForm();
