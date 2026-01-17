@@ -25,41 +25,21 @@ class RemoteSyncManager extends IPSModuleStrict
         $this->WriteAttributeString("SyncListCache", $this->ReadPropertyString("SyncList"));
     }
 
-    private function GetWorkingSyncList(): array
-    {
-        $cache = $this->ReadAttributeString("SyncListCache");
-        if ($cache === "" || $cache === "[]") $cache = $this->ReadPropertyString("SyncList");
-        $data = json_decode($cache, true);
-        return is_array($data) ? $data : [];
-    }
-
-    /**
-     * SYSTEM-HANDLER: RequestAction
-     * Verarbeitet nun die EINE geänderte Zeile, die per onEdit kommt.
-     */
     public function RequestAction($Ident, $Value): void
     {
-        $this->SendDebug("RSM_RequestAction", "Ident: $Ident", 0);
-
         switch ($Ident) {
             case "UpdateRow":
-                // Value ist hier das JSON der EINEN geänderten Zeile (inkl. Folder-Information)
                 $row = json_decode($Value, true);
-                if (!$row || !isset($row['Folder'], $row['ObjectID'])) {
-                    $this->SendDebug("RSM_Error", "Invalid Row Data received", 0);
-                    return;
-                }
+                if (!$row || !isset($row['Folder'], $row['ObjectID'])) return;
 
-                $this->SendDebug("RSM_RowUpdate", "Folder: " . $row['Folder'] . " | ID: " . $row['ObjectID'], 0);
+                $currentCache = json_decode($this->ReadAttributeString("SyncListCache"), true);
+                if (!is_array($currentCache)) $currentCache = [];
 
-                // Aktuellen RAM-Stand laden
-                $currentCache = $this->GetWorkingSyncList();
                 $map = [];
                 foreach ($currentCache as $item) {
                     $map[$item['Folder'] . '_' . $item['ObjectID']] = $item;
                 }
 
-                // Diese eine Zeile in der Map aktualisieren oder hinzufügen
                 $key = $row['Folder'] . '_' . $row['ObjectID'];
                 $map[$key] = [
                     "Folder"   => $row['Folder'],
@@ -72,28 +52,31 @@ class RemoteSyncManager extends IPSModuleStrict
 
                 $final = json_encode(array_values($map));
                 $this->WriteAttributeString("SyncListCache", $final);
-
-                // Blueprint: In Property "parken"
                 IPS_SetProperty($this->InstanceID, "SyncList", $final);
-                $this->SendDebug("RSM_Success", "Row merged into RAM-Cache", 0);
                 break;
         }
     }
 
     public function GetConfigurationForm(): string
     {
-        // Cache initialisieren
+        // Cache füllen falls leer
         if ($this->ReadAttributeString("SyncListCache") === "[]") {
             $this->WriteAttributeString("SyncListCache", $this->ReadPropertyString("SyncList"));
         }
 
         $form = json_decode(file_get_contents(__DIR__ . "/form.json"), true);
+
+        // --- NEUE LOGIK FÜR DIE REIHENFOLGE ---
+        $staticButtons = $form['actions']; // Speichere Save/Refresh Buttons aus form.json
+        $form['actions'] = []; // Leere die Actions, um Schritt 3 an den Anfang zu setzen
+        // --------------------------------------
+
         $secID = $this->ReadPropertyInteger("LocalPasswordModuleID");
         $targets = json_decode($this->ReadPropertyString("Targets"), true);
         $roots = json_decode($this->ReadPropertyString("Roots"), true);
-        $savedSync = $this->GetWorkingSyncList();
+        $savedSync = json_decode($this->ReadAttributeString("SyncListCache"), true);
 
-        // Dropdowns (Static Elements)
+        // Dropdowns befüllen
         $serverOptions = [["caption" => "Please select...", "value" => ""]];
         if ($secID > 0 && IPS_InstanceExists($secID)) {
             $keys = json_decode(@SEC_GetKeys($secID), true);
@@ -104,13 +87,11 @@ class RemoteSyncManager extends IPSModuleStrict
         $this->UpdateStaticFormElements($form['elements'], $serverOptions, $folderOptions);
 
         $stateCache = [];
-        foreach ($savedSync as $item) {
-            if (isset($item['Folder'], $item['ObjectID'])) {
-                $stateCache[$item['Folder'] . '_' . $item['ObjectID']] = $item;
-            }
+        if (is_array($savedSync)) {
+            foreach ($savedSync as $item) $stateCache[$item['Folder'] . '_' . $item['ObjectID']] = $item;
         }
 
-        // Dynamische Selection Panels in 'actions'
+        // Dynamische Selection Panels (Jetzt am Anfang der actions Sektion)
         foreach ($targets as $target) {
             if (empty($target['Name'])) continue;
             $folderName = $target['Name'];
@@ -123,9 +104,9 @@ class RemoteSyncManager extends IPSModuleStrict
                     foreach ($foundVars as $vID) {
                         $key = $folderName . '_' . $vID;
                         $syncValues[] = [
-                            "Folder"   => $folderName, // Wichtig für RequestAction!
+                            "Folder"   => $folderName,
                             "ObjectID" => $vID,
-                            "Name"     => IPS_GetName($vID),
+                            "Name" => IPS_GetName($vID),
                             "Active"   => $stateCache[$key]['Active'] ?? false,
                             "Action"   => $stateCache[$key]['Action'] ?? false,
                             "Delete"   => $stateCache[$key]['Delete'] ?? false
@@ -135,17 +116,11 @@ class RemoteSyncManager extends IPSModuleStrict
             }
 
             $listName = "List_" . md5($folderName);
-
-            /** 
-             * DOKU-FIX: onEdit statt onChange.
-             * Da $listName bei onEdit nur die EINE Zeile enthält, 
-             * können wir sie direkt per json_encode senden.
-             */
             $onEdit = "IPS_RequestAction(\$id, 'UpdateRow', json_encode(\$$listName));";
 
             $form['actions'][] = [
                 "type"    => "ExpansionPanel",
-                "caption" => "TARGET: " . strtoupper($folderName) . " (" . count($syncValues) . " Variables)",
+                "caption" => "TARGET SELECTION: " . strtoupper($folderName) . " (" . count($syncValues) . " Variables)",
                 "items"   => [
                     [
                         "type" => "RowLayout",
@@ -160,10 +135,10 @@ class RemoteSyncManager extends IPSModuleStrict
                     [
                         "type" => "List",
                         "name" => $listName,
-                        "rowCount" => min(count($syncValues) + 1, 10),
+                        "rowCount" => min(count($syncValues) + 1, 15),
                         "add" => false,
                         "delete" => false,
-                        "onEdit" => $onEdit, // Hier ist der Fix!
+                        "onEdit" => $onEdit,
                         "columns" => [
                             ["name" => "ObjectID", "caption" => "ID", "width" => "70px"],
                             ["name" => "Name", "caption" => "Variable Name", "width" => "auto"],
@@ -176,6 +151,12 @@ class RemoteSyncManager extends IPSModuleStrict
                 ]
             ];
         }
+
+        // --- HIER WERDEN DIE BUTTONS AM ENDE ANGEFÜGT ---
+        foreach ($staticButtons as $btn) {
+            $form['actions'][] = $btn;
+        }
+
         return json_encode($form);
     }
 
@@ -197,7 +178,9 @@ class RemoteSyncManager extends IPSModuleStrict
     public function ToggleAll(string $Column, bool $State, string $Folder): void
     {
         $roots = json_decode($this->ReadPropertyString("Roots"), true);
-        $data = $this->GetWorkingSyncList();
+        $data = json_decode($this->ReadAttributeString("SyncListCache"), true);
+        if (!is_array($data)) $data = [];
+
         $map = [];
         foreach ($data as $item) $map[$item['Folder'] . '_' . $item['ObjectID']] = $item;
 
