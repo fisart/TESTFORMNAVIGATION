@@ -1,0 +1,11 @@
+{
+    "id": "{A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D}",
+    "name": "RemoteSyncManager",
+    "type": 3,
+    "vendor": "Remote Utilities",
+    "aliases": ["Remote Manager", "Sync Manager"],
+    "parentRequirements": [],
+    "childRequirements": [],
+    "implemented": [],
+    "prefix": "RSM"
+}

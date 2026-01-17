@@ -1,0 +1,21 @@
+{
+    "translations": {
+        "de": {
+            "Step 1: Define Remote Targets (Folders)": "Schritt 1: Remote-Ziele definieren (Ordner)",
+            "Remote Targets": "Remote-Zielsysteme",
+            "Folder Name": "Ordnername",
+            "SEC Server Key": "SEC Server-Schlüssel",
+            "Remote Target ID": "Remote Ziel-ID",
+            "Step 2: Map Local Roots to Folders": "Schritt 2: Lokale Wurzeln zuordnen",
+            "Local Source Roots": "Lokale Quell-Kategorien",
+            "Local Object (Source)": "Lokales Objekt (Quelle)",
+            "Assign to Folder": "Ordner zuweisen",
+            "Step 3: Final Sync Selection (Auto-Generated)": "Schritt 3: Synchronisations-Auswahl (Automatisch)",
+            "Consolidated Variables": "Zusammengeführte Variablenliste",
+            "Target Folder": "Ziel-Ordner",
+            "Variable Name": "Variablenname",
+            "Sync": "Sync",
+            "Force Refresh": "Liste manuell aktualisieren"
+        }
+    }
+}
