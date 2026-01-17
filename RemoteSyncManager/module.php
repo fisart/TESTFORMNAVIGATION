@@ -15,11 +15,16 @@ class RemoteSyncManager extends IPSModuleStrict
         $this->RegisterPropertyString("Targets", "[]");
         $this->RegisterPropertyString("Roots", "[]");
         $this->RegisterPropertyString("SyncList", "[]");
+
+        // Internes Flag für ungespeicherte Änderungen
+        $this->RegisterAttributeBoolean("ConfigDirty", false);
     }
 
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
+        // Nach dem Speichern ist das Flag wieder sauber
+        $this->WriteAttributeBoolean("ConfigDirty", false);
     }
 
     public function GetConfigurationForm(): string
@@ -30,7 +35,10 @@ class RemoteSyncManager extends IPSModuleStrict
         $roots = json_decode($this->ReadPropertyString("Roots"), true);
         $savedSync = json_decode($this->ReadPropertyString("SyncList"), true);
 
-        // 1. Fetch SEC Keys
+        // Dirty-Flag prüfen für die Sichtbarkeit des Save-Buttons
+        $isDirty = $this->ReadAttributeBoolean("ConfigDirty");
+
+        // 1. SEC Keys laden
         $serverOptions = [["caption" => "Please select...", "value" => ""]];
         if ($secID > 0 && IPS_InstanceExists($secID)) {
             $keys = json_decode(@SEC_GetKeys($secID), true);
@@ -45,10 +53,16 @@ class RemoteSyncManager extends IPSModuleStrict
             if (!empty($t['Name'])) $folderOptions[] = ["caption" => $t['Name'], "value" => $t['Name']];
         }
 
-        // 3. Static UI Injection
+        // 3. UI Injektion & Save-Button Sichtbarkeit
         $this->UpdateStaticFormElements($form['elements'], $serverOptions, $folderOptions);
 
-        // 4. State Cache
+        foreach ($form['actions'] as &$action) {
+            if (isset($action['name']) && ($action['name'] === 'SaveNote' || $action['name'] === 'BtnSave')) {
+                $action['visible'] = $isDirty;
+            }
+        }
+
+        // 4. State Cache für Checkboxen
         $stateCache = [];
         if (is_array($savedSync)) {
             foreach ($savedSync as $item) {
@@ -58,7 +72,7 @@ class RemoteSyncManager extends IPSModuleStrict
             }
         }
 
-        // 5. Dynamic Step 3
+        // 5. Dynamisches Step 3
         foreach ($targets as $target) {
             if (empty($target['Name'])) continue;
             $folderName = $target['Name'];
@@ -159,14 +173,17 @@ class RemoteSyncManager extends IPSModuleStrict
             $map[$key] = [
                 "Folder"   => $Folder,
                 "ObjectID" => $uiItem['ObjectID'],
-                "Name"     => $uiItem['Name'],
+                "Name" => $uiItem['Name'],
                 "Active"   => $uiItem['Active'],
-                "Action"   => $uiItem['Action'],
-                "Delete"   => $uiItem['Delete']
+                "Action" => $uiItem['Action'],
+                "Delete" => $uiItem['Delete']
             ];
         }
 
         IPS_SetProperty($this->InstanceID, "SyncList", json_encode(array_values($map)));
+
+        // Flag setzen und UI benachrichtigen
+        $this->WriteAttributeBoolean("ConfigDirty", true);
         $this->UpdateFormField("SaveNote", "visible", true);
         $this->UpdateFormField("BtnSave", "visible", true);
     }
@@ -199,7 +216,12 @@ class RemoteSyncManager extends IPSModuleStrict
         }
 
         IPS_SetProperty($this->InstanceID, "SyncList", json_encode(array_values($currentMap)));
+
+        // UI Liste aktualisieren
         $this->UpdateFormField("List_" . md5($Folder), "values", json_encode($uiValues));
+
+        // Flag setzen und UI benachrichtigen
+        $this->WriteAttributeBoolean("ConfigDirty", true);
         $this->UpdateFormField("SaveNote", "visible", true);
         $this->UpdateFormField("BtnSave", "visible", true);
     }
@@ -215,8 +237,10 @@ class RemoteSyncManager extends IPSModuleStrict
 
     public function SaveSelections(): void
     {
+        $this->WriteAttributeBoolean("ConfigDirty", false);
         IPS_ApplyChanges($this->InstanceID);
     }
+
     public function UpdateUI(): void
     {
         $this->ReloadForm();
