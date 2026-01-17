@@ -47,7 +47,6 @@
             ]
         },
         { "type": "Label", "caption": "Step 3: Individual Selection per Target" }
-        /* Step 3 wird dynamisch durch module.php hinzugefügt */
     ],
     "actions": [
         { "type": "Button", "caption": "Force Refresh UI", "onClick": "RSM_UpdateUI($id);" }

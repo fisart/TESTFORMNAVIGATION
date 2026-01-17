@@ -1,21 +1,33 @@
 {
     "translations": {
         "de": {
-            "Step 1: Define Remote Targets (Folders)": "Schritt 1: Remote-Ziele definieren (Ordner)",
+            "Global Configuration": "Globale Konfiguration",
+            "Debug Mode (Verbose Log)": "Debug-Modus (Ausführliches Log)",
+            "Use Auto-Create (Create missing remote objects)": "Automatische Erstellung (Remote-Objekte anlegen)",
+            "Replicate Variable Profiles (local → remote)": "Variablenprofile replizieren (lokal → remote)",
+            "Local Secrets Module": "Lokales Secrets-Modul",
+            "Local Server Key (Used by Remote for Actions)": "Lokaler Server-Schlüssel (für Remote-Rücksteuerung)",
+            "Step 1: Define Remote Targets (Folders) & Connection": "Schritt 1: Remote-Ziele definieren (Ordner)",
             "Remote Targets": "Remote-Zielsysteme",
             "Folder Name": "Ordnername",
-            "SEC Server Key": "SEC Server-Schlüssel",
-            "Remote Target ID": "Remote Ziel-ID",
+            "Remote Server Key": "Remote Server-Schlüssel",
+            "Data Target ID": "Ziel-Kategorie ID",
+            "Script Home ID": "Remote Script-Ordner ID",
+            "Remote SEC ID": "Remote SEC Instanz-ID",
             "Step 2: Map Local Roots to Folders": "Schritt 2: Lokale Wurzeln zuordnen",
             "Local Source Roots": "Lokale Quell-Kategorien",
             "Local Object (Source)": "Lokales Objekt (Quelle)",
             "Assign to Folder": "Ordner zuweisen",
-            "Step 3: Final Sync Selection (Auto-Generated)": "Schritt 3: Synchronisations-Auswahl (Automatisch)",
-            "Consolidated Variables": "Zusammengeführte Variablenliste",
-            "Target Folder": "Ziel-Ordner",
+            "Step 3: Individual Selection per Target": "Schritt 3: Individuelle Auswahl pro Ziel",
             "Variable Name": "Variablenname",
             "Sync": "Sync",
-            "Force Refresh": "Liste manuell aktualisieren"
+            "R-Action": "R-Aktion",
+            "Del Rem.": "Remote löschen",
+            "Batch Tools:": "Massen-Aktionen:",
+            "Sync ALL": "Alle Sync",
+            "Sync NONE": "Keine Sync",
+            "Action ALL": "Alle Aktion",
+            "INSTALL SCRIPTS": "SCRIPTE INSTALLIEREN"
         }
     }
 }
