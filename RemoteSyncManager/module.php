@@ -30,7 +30,6 @@ class RemoteSyncManager extends IPSModuleStrict
         $roots = json_decode($this->ReadPropertyString("Roots"), true);
         $savedSync = json_decode($this->ReadPropertyString("SyncList"), true);
 
-        // 1. Fetch SEC Keys
         $serverOptions = [["caption" => "Please select...", "value" => ""]];
         if ($secID > 0 && IPS_InstanceExists($secID)) {
             $keys = json_decode(@SEC_GetKeys($secID), true);
@@ -39,28 +38,26 @@ class RemoteSyncManager extends IPSModuleStrict
             }
         }
 
-        // 2. Folder Options
         $folderOptions = [["caption" => "Select Target Folder...", "value" => ""]];
         foreach ($targets as $t) {
             if (!empty($t['Name'])) $folderOptions[] = ["caption" => $t['Name'], "value" => $t['Name']];
         }
 
-        // 3. Static UI Injection
         $this->UpdateStaticFormElements($form['elements'], $serverOptions, $folderOptions);
 
-        // 4. State Cache Preparation
         $stateCache = [];
-        foreach ($savedSync as $item) {
-            if (isset($item['Folder'], $item['ObjectID'])) {
-                $stateCache[$item['Folder'] . '_' . $item['ObjectID']] = [
-                    'Active' => $item['Active'] ?? false,
-                    'Action' => $item['Action'] ?? false,
-                    'Delete' => $item['Delete'] ?? false
-                ];
+        if (is_array($savedSync)) {
+            foreach ($savedSync as $item) {
+                if (isset($item['Folder'], $item['ObjectID'])) {
+                    $stateCache[$item['Folder'] . '_' . $item['ObjectID']] = [
+                        'Active' => $item['Active'] ?? false,
+                        'Action' => $item['Action'] ?? false,
+                        'Delete' => $item['Delete'] ?? false
+                    ];
+                }
             }
         }
 
-        // 5. Dynamic Step 3 (ExpansionPanels per Target)
         foreach ($targets as $target) {
             if (empty($target['Name'])) continue;
 
@@ -68,7 +65,7 @@ class RemoteSyncManager extends IPSModuleStrict
             $syncValues = [];
 
             foreach ($roots as $root) {
-                if ($root['TargetFolder'] === $folderName && $root['LocalRootID'] > 0 && IPS_ObjectExists($root['LocalRootID'])) {
+                if (isset($root['TargetFolder']) && $root['TargetFolder'] === $folderName && isset($root['LocalRootID']) && $root['LocalRootID'] > 0 && IPS_ObjectExists($root['LocalRootID'])) {
                     $foundVars = [];
                     $this->GetRecursiveVariables($root['LocalRootID'], $foundVars);
                     foreach ($foundVars as $vID) {
@@ -128,7 +125,6 @@ class RemoteSyncManager extends IPSModuleStrict
         foreach ($elements as &$element) {
             if (isset($element['items'])) $this->UpdateStaticFormElements($element['items'], $serverOptions, $folderOptions);
             if (!isset($element['name'])) continue;
-
             if ($element['name'] === 'LocalServerKey') $element['options'] = $serverOptions;
             if ($element['name'] === 'Targets') {
                 foreach ($element['columns'] as &$col) {
@@ -146,8 +142,12 @@ class RemoteSyncManager extends IPSModuleStrict
     public function ToggleAll(string $Column, bool $State, string $Folder): void
     {
         $savedSync = json_decode($this->ReadPropertyString("SyncList"), true);
+        if (!is_array($savedSync)) $savedSync = [];
+
         foreach ($savedSync as &$item) {
-            if ($item['Folder'] === $Folder) $item[$Column] = $State;
+            if (isset($item['Folder']) && $item['Folder'] === $Folder) {
+                $item[$Column] = $State;
+            }
         }
         IPS_SetProperty($this->InstanceID, "SyncList", json_encode($savedSync));
         IPS_ApplyChanges($this->InstanceID);
