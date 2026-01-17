@@ -23,12 +23,12 @@ class RemoteSyncManager extends IPSModuleStrict
     {
         $form = json_decode(file_get_contents(__DIR__ . "/form.json"), true);
 
-        // 1. Read existing configurations
+        // 1. Bestehende Konfigurationen einlesen
         $targets = json_decode($this->ReadPropertyString("Targets"), true);
         $roots = json_decode($this->ReadPropertyString("Roots"), true);
         $savedSync = json_decode($this->ReadPropertyString("SyncList"), true);
 
-        // 2. Prepare Folder Options for the Roots-List
+        // 2. Ordner-Optionen für die Roots-Liste vorbereiten
         $folderOptions = [];
         foreach ($targets as $t) {
             if (!empty($t['Name'])) {
@@ -36,9 +36,10 @@ class RemoteSyncManager extends IPSModuleStrict
             }
         }
 
-        // 3. Update the Dropdown in the Roots-List
+        // 3. Den Dropdown in der Roots-Liste dynamisch aktualisieren
         foreach ($form['elements'] as &$element) {
-            if ($element['name'] === 'Roots') {
+            // PRÜFUNG: Existiert 'name' und ist es 'Roots'?
+            if (isset($element['name']) && $element['name'] === 'Roots') {
                 foreach ($element['columns'] as &$col) {
                     if ($col['name'] === 'TargetFolder') {
                         $col['edit']['options'] = $folderOptions;
@@ -47,17 +48,18 @@ class RemoteSyncManager extends IPSModuleStrict
             }
         }
 
-        // 4. Generate the consolidated SyncList
+        // 4. Die konsolidierte SyncList generieren
         $syncValues = [];
-        // Create a map of existing selections to keep them when the list refreshes
         $activeStates = [];
         foreach ($savedSync as $item) {
-            $activeStates[$item['Folder'] . '_' . $item['ObjectID']] = $item['Active'] ?? false;
+            if (isset($item['Folder'], $item['ObjectID'])) {
+                $activeStates[$item['Folder'] . '_' . $item['ObjectID']] = $item['Active'] ?? false;
+            }
         }
 
         foreach ($roots as $root) {
-            $rootID = $root['LocalRootID'];
-            $folderName = $root['TargetFolder'];
+            $rootID = $root['LocalRootID'] ?? 0;
+            $folderName = $root['TargetFolder'] ?? '';
 
             if ($rootID > 0 && IPS_ObjectExists($rootID) && !empty($folderName)) {
                 $foundVars = [];
@@ -75,9 +77,10 @@ class RemoteSyncManager extends IPSModuleStrict
             }
         }
 
-        // 5. Inject the generated values into the form
+        // 5. Die generierten Werte in das Formular injizieren
         foreach ($form['elements'] as &$element) {
-            if ($element['name'] === 'SyncList') {
+            // PRÜFUNG: Existiert 'name' und ist es 'SyncList'?
+            if (isset($element['name']) && $element['name'] === 'SyncList') {
                 $element['values'] = $syncValues;
             }
         }
